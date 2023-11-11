@@ -1,24 +1,21 @@
-# 📁 micky_txlogger
-Discord log for txAdmin events (this idea is not mine, it has been uploaded before but this is my version)
+# 📁 discord-txlogger
+Discord log for txAdmin events.
 
-# ⚙️ Configuration
-📂 `../micky_txlogger/cfg/config.lua`
+# ⚙️ Installation & Configuration
+- Config the webhook URLs in `config.lua` as show further below.
+- Put `discord-txlogger` folder in your resource folder.
+- In your server.cfg add `ensure discord-txlogger`.
 
-- Enter the URL of the WebHooks in the `Config.WebHooks` table on line 5, there are two types of logs, which are explained in the following table..
+📂 `../discord-txlogger/cfg/config.lua`
 
 |          Type log          |                         Description                         |
 |:--------------------------:|:-----------------------------------------------------------:|
+| Config.FooterText          | Text displayed in the embed footer                          |
 | Config.WebHooks['Server']  | All logs related to the server (announcements, restarts...) |
 | Config.WebHooks['Players'] | All logs related to players (bans, warnings, kicks...)      |
-
-![carbon (1)](https://github.com/Micky014/micky_txlogger/assets/69732917/08f919e6-039f-451d-bf08-f1b3d54512cb)
-
-# ❓ How to use
-- You don't have to do anything to use it, just install the script on your server and it will start logging events.
 
 # ⁉️ F.A.Q
 N/A
 
-# 👋 Micky014
-- Discord support: https://discord.mickydev.com
-- Tebex store: https://micky014.tebex.io
+# Credits
+- Orginal Creator Micky014: https://github.com/Micky014/micky_txlogger

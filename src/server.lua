@@ -1,184 +1,235 @@
--------- @../src/server.lua --------
-
 -- functions --
-local logcmd = {
-    error = function(msg)
-        print('[^1ERROR^7] '..msg)
-    end,
+local function log(level, msg)
+    local colors = { error = '^1', success = '^2', info = '^5' }
+    print('['..colors[level]..level:upper()..'^7] '..msg)
+end
 
-    success = function(msg)
-        print('[^2SUCCESS^7] '..msg)
-    end,
+local function createEmbed(title, description, color, extraFields)
+    local embed = {
+        title = title,
+        description = description,
+        color = tonumber(color:gsub('#', ''), 16),
+        footer = { ['text'] = Config.FooterText },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%S"),
+        fields = extraFields
+    }
+    return embed
+end
 
-    info = function(msg)
-        print('[^5INFO^7] '..msg)
-    end,
-}
+local function isValidWebhookUrl(url)
+    return url:find('https://') and url:find('discord')
+end
 
-local function SendDiscordWebhook(url, embed)
-    if not url:find('https://') or not url:find('discord') then
-        return logcmd.error('invalid discord webhook url: '..url)
+local function SendDiscordWebhook(webhookData)
+    if not isValidWebhookUrl(webhookData.url) then
+        return log('error', 'Invalid discord webhook url: ' .. webhookData.url)
     end
 
-    if embed.color then
-        embed.color = tonumber(embed.color:gsub('#', ''), 16)
-    end
-
-    embed.footer = { ['text'] = 'micky_txlogger © 2023' }
-    embed.timestamp = os.date("!%Y%m%dT%H%M%S")
-
-    PerformHttpRequest(url, function(code, data)
+    PerformHttpRequest(webhookData.url, function(code)
         if code ~= 204 then
-            logcmd.error('error sending webhook: '..code)
+            log('error', 'Error sending webhook: ' .. tostring(code))
         end
-    end, 'POST', json.encode({ 
-        embeds = { embed }
-    }), { 
-        ['Content-Type'] = 'application/json' 
-    })
+    end, 'POST', json.encode({
+        username = webhookData.botName,
+        avatar_url = webhookData.botAvatarUrl,
+        embeds = { webhookData.embed }
+    }), { ['Content-Type'] = 'application/json' })
 end
 
 -- players events --
 AddEventHandler('txAdmin:events:playerWarned', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Player warned',
-        description = '**Event: `txAdmin:events:playerWarned`**',
-        color = '#DFFF00',
-        fields = {
+    local embed = createEmbed(
+        'Player warned',
+        '**Event: `txAdmin:events:playerWarned`**',
+        '#DFFF00', {
             { name = 'Player', value = '**`['..eventData.target..'] '..GetPlayerName(eventData.target)..'`**', inline = true },
             { name = 'Author', value = '**`'..eventData.author..'`**', inline = true },
             { name = 'Reason', value = '**`'..eventData.reason..'`**', inline = true },
             { name = 'Action Id', value = '**`'..eventData.actionId..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:playerKicked', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Player kicked',
-        description = '**Event: `txAdmin:events:playerKicked`**',
-        color = '#FFBF00',
-        fields = {
+    local embed = createEmbed(
+        'Player kicked',
+        '**Event: `txAdmin:events:playerKicked`**',
+        '#FFBF00', {
             { name = 'Player', value = '**`['..eventData.target..'] '..GetPlayerName(eventData.target)..'`**', inline = true },
             { name = 'Author', value = '**`'..eventData.author..'`**', inline = true },
             { name = 'Reason', value = '**`'..eventData.reason..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:playerBanned', function(eventData)
-    if eventData.durationTranslated == nil then
-        eventData.durationTranslated = 'Permanent'
-    end
+    eventData.durationTranslated = eventData.durationTranslated or 'Permanent'
 
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Player banned',
-        description = '**Event: `txAdmin:events:playerBanned`**',
-        color = '#FF0000',
-        fields = {
+    local embed = createEmbed(
+        'Player banned',
+        '**Event: `txAdmin:events:playerBanned`**',
+        '#FF0000', {
             { name = 'Player', value = '**`'..eventData.targetName..'`**', inline = true },
             { name = 'Author', value = '**`'..eventData.author..'`**', inline = true },
             { name = 'Reason', value = '**`'..eventData.reason..'`**', inline = true },
             { name = 'Duration', value = '**`'..eventData.durationTranslated..'`**', inline = true },
             { name = 'Action Id', value = '**`'..eventData.actionId..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:healedPlayer', function(eventData)
-    if eventData.id ~= -1 then
-        playerName = '**`['..eventData.id..'] '..GetPlayerName(eventData.id)..'`**'
-    else
-        playerName = '**`Everyone`**'
-    end
+    local playerName = eventData.id ~= -1 and '**`['..eventData.id..'] '..GetPlayerName(eventData.id)..'`**' or '**`Everyone`**'
 
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Player healed',
-        description = '**Event: `txAdmin:events:healedPlayer`**',
-        color = '#9FE2BF',
-        fields = {
+    local embed = createEmbed(
+        'Player healed',
+        '**Event: `txAdmin:events:healedPlayer`**',
+        '#9FE2BF', {
             { name = 'Player', value = playerName, inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:actionRevoked', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Action revoked',
-        description = '**Event: `txAdmin:events:actionRevoked`**',
-        color = '#DE3163',
-        fields = {
+    local embed = createEmbed(
+        'Action revoked',
+        '**Event: `txAdmin:events:actionRevoked`**',
+        '#DE3163', {
             { name = 'Player', value = '**`'..eventData.playerName..'`**', inline = true },
             { name = 'Action Id', value = '**`'..eventData.actionId..'`**', inline = true },
             { name = 'Action type', value = '**`'..eventData.actionType..'`**', inline = true },
             { name = 'Action reason', value = '**`'..eventData.actionReason..'`**', inline = true },
             { name = 'Revoked by', value = '**`'..eventData.revokedBy..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:whitelistPlayer', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Whitelist player',
-        description = '**Event: `txAdmin:events:whitelistPlayer`**',
-        color = '#9FE2BF',
-        fields = {
+    local embed = createEmbed(
+        'Whitelist player',
+        '**Event: `txAdmin:events:whitelistPlayer`**',
+        '#9FE2BF', {
             { name = 'Player', value = '**`'..eventData.playerName..'`**', inline = true },
             { name = 'Action', value = '**`'..eventData.action..'`**', inline = true },
             { name = 'Admin', value = '**`'..eventData.adminName..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:whitelistRequest', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Whitelist request',
-        description = '**Event: `txAdmin:events:whitelistRequest`**',
-        color = '#6495ED',
-        fields = {
+    local embed = createEmbed(
+        'Whitelist request',
+        '**Event: `txAdmin:events:whitelistRequest`**',
+        '#6495ED', {
             { name = 'Player', value = '**`'..eventData.playerName..'`**', inline = true },
             { name = 'Action', value = '**`'..eventData.action..'`**', inline = true },
             { name = 'Request Id', value = '**`'..eventData.requestId..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Player Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:whitelistPreApproval', function(eventData)
     local player = eventData.playerName or eventData.identifier
-
-    SendDiscordWebhook(Config.WebHooks['Players'], {
-        title = 'Whitelist pre approval',
-        description = '**Event: `txAdmin:events:whitelistPreApproval`**',
-        color = '#DFFF00',
-        fields = {
+    local embed = createEmbed(
+        'Whitelist pre approval',
+        '**Event: `txAdmin:events:whitelistPreApproval`**',
+        '#DFFF00', {
             { name = 'Player', value = '**`'..player..'`**', inline = true },
             { name = 'Action', value = '**`'..eventData.action..'`**', inline = true },
             { name = 'Admin', value = '**`'..eventData.adminName..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Players'],
+        embed = embed,
+        botName = "txAdmin Server Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 -- server events --
 RegisterServerEvent('txAdmin:events:announcement', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Server'], {
-        title = 'Announcement',
-        description = '**Event: `txAdmin:events:announcement`**',
-        color = '#40E0D0',
-        fields = {
+    local embed = createEmbed(
+        'Announcement',
+        '**Event: `txAdmin:events:announcement`**',
+        '#40E0D0', {
             { name = 'Author', value = '**`'..eventData.author..'`**', inline = true },
             { name = 'Message', value = '**`'..eventData.message..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Server'],
+        embed = embed,
+        botName = "txAdmin Server Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
 
 AddEventHandler('txAdmin:events:serverShuttingDown', function(eventData)
-    SendDiscordWebhook(Config.WebHooks['Server'], {
-        title = 'Server shutting down',
-        description = '**Event: `txAdmin:events:serverShuttingDown`**',
-        color = '#DFFF00',
-        fields = {
+    local embed = createEmbed(
+        'Server shutting down',
+        '**Event: `txAdmin:events:serverShuttingDown`**',
+        '#DFFF00', {
             { name = 'Author', value = '**`'..eventData.author..'`**', inline = true },
             { name = 'Message', value = '**`'..eventData.message..'`**', inline = true }
         }
+    )
+
+    SendDiscordWebhook({
+        url = Config.WebHooks['Server'],
+        embed = embed,
+        botName = "txAdmin Server Log",
+        botAvatarUrl = "https://corepixelrp.net/assets/img/external/logs/logo-log.png"
     })
 end)
